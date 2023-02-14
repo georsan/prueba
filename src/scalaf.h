@@ -43,7 +43,7 @@ void FuncionPrincipal(int filas, int columnas, mapCell *A, mapCell *C);
 int leerArchivoTexto_Matriz(char *path, int filas, int columnas,
                             mapCell *matriz);
 void preFuncion(int, int, const mapCell *, mapCell *);
-void postFuncion(int, int, const mapCell *A, mapCell *C);
+void postFuncion(int, int, const mapCell *A, mapCell *C,MPI_Comm comm);
 int leerArchivoPuntos(char *, int, point2D *);
 int colocarCrateres(mapCell *, const point2D *, int, int, int);
 
