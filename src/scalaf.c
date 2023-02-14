@@ -897,7 +897,7 @@ int main(int argc, char *argv[]) {
         memcpy(resultPoint, resultCalc,
                (c0.maxRows + 2) * (c0.maxColumns + 2) * sizeof(mapCell));
       }
-      postFuncion(c0.maxRows + 2, c0.maxColumns + 2, resultCalc, resultPoint2,int rank, int size);
+      postFuncion(c0.maxRows + 2, c0.maxColumns + 2, resultCalc, resultPoint2,rank,size);
     }
   }
 
