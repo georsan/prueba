@@ -6,9 +6,6 @@
 #define emisivity 0.9
 #define SBConst 0.0000000568
 #define time_delta 1
-MPI_Comm comm;
-  MPI_Init(&argc, &argv);
-  MPI_Comm_dup(MPI_COMM_WORLD, &comm);
 
 // Esta es la estructura de cada mapCell
 typedef struct {
@@ -46,7 +43,7 @@ void FuncionPrincipal(int filas, int columnas, mapCell *A, mapCell *C);
 int leerArchivoTexto_Matriz(char *path, int filas, int columnas,
                             mapCell *matriz);
 void preFuncion(int, int, const mapCell *, mapCell *);
-void postFuncion(int, int, const mapCell *A, mapCell *C,MPI_Comm comm);
+void postFuncion(int, int, const mapCell *A, mapCell *C,int rank, int size);
 int leerArchivoPuntos(char *, int, point2D *);
 int colocarCrateres(mapCell *, const point2D *, int, int, int);
 

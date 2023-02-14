@@ -207,57 +207,47 @@ void preFuncion(int filas, int columnas, const mapCell *A, mapCell *C) {
 /* La función postfunción "reduce" la matriz, eliminando una fila y una
 columna al principio y al final (la matriz tiene dimensiones (MAX_ROWS
 +2)*(MAX_COLS+2) y el resultado MAX_ROWS*MAX_COLS. */
-void postFuncion(int filas, int columnas, const mapCell *A, mapCell *C, MPI_Comm comm) {
-  int rank, size;
-  MPI_Comm_rank(comm, &rank);
-  MPI_Comm_size(comm, &size);
-
+void postFuncion(int filas, int columnas, const mapCell *A, mapCell *C, int rank, int size) {
+  // veamos si entra a la funcion
+  int i, j;
+  printf("eliminando filas y columnas extras de la matriz...\n");
+  mapCell *B;
   int n_columnas = columnas - 2;
   int n_filas = filas - 2;
-  int n_bloques = size;
-  int filas_por_bloque = n_filas / n_bloques;
-  int resto_filas = n_filas % n_bloques;
-  int fila_inicial = rank * filas_por_bloque + MIN(rank, resto_filas);
-  int fila_final = fila_inicial + filas_por_bloque + (rank < resto_filas);
-  int filas_bloque = fila_final - fila_inicial + 2;
-  int total_filas_bloque = filas_bloque * n_columnas;
-  
-  mapCell *B = (mapCell *)malloc(total_filas_bloque * sizeof(mapCell));
-  
-  int f, c, i, j;
+  B = (mapCell *)malloc(n_filas * n_columnas * sizeof(mapCell));
+  int f, c;
   c = 0;
   f = 0;
-  for (i = fila_inicial; i < fila_final; i++) {
+
+  // Distribuir filas entre los procesos
+  int num_rows = n_filas / size;
+  int remainder = n_filas % size;
+  int start_row = rank * num_rows + (rank < remainder ? rank : remainder);
+  int end_row = start_row + num_rows + (rank < remainder);
+
+  // reducir la matriz
+  for (i = start_row; i < end_row; i++) {
     c = 0;
     for (j = 0; j < columnas; j++) {
       if (!(j == 0 || j >= (columnas - 1))) {
-        B[f * n_columnas + c].altitude = A[i * columnas + j].altitude;
-        B[f * n_columnas + c].thickness = A[i * columnas + j].thickness;
-        B[f * n_columnas + c].temperature = A[i * columnas + j].temperature;
-        B[f * n_columnas + c].isVent = A[i * columnas + j].isVent;
-        B[f * n_columnas + c].yield = A[i * columnas + j].yield;
-        B[f * n_columnas + c].viscosity = A[i * columnas + j].viscosity;
-        B[f * n_columnas + c].exits = A[i * columnas + j].exits;
-        B[f * n_columnas + c].inboundV = A[i * columnas + j].inboundV;
-        B[f * n_columnas + c].outboundV = A[i * columnas + j].outboundV;
+        B[(i-start_row) * n_columnas + c].altitude = A[i * columnas + j].altitude;
+        B[(i-start_row) * n_columnas + c].thickness = A[i * columnas + j].thickness;
+        B[(i-start_row) * n_columnas + c].temperature = A[i * columnas + j].temperature;
+        B[(i-start_row) * n_columnas + c].isVent = A[i * columnas + j].isVent;
+        B[(i-start_row) * n_columnas + c].yield = A[i * columnas + j].yield;
+        B[(i-start_row) * n_columnas + c].viscosity = A[i * columnas + j].viscosity;
+        B[(i-start_row) * n_columnas + c].exits = A[i * columnas + j].exits;
+        B[(i-start_row) * n_columnas + c].inboundV = A[i * columnas + j].inboundV;
+        B[(i-start_row) * n_columnas + c].outboundV = A[i * columnas + j].outboundV;
         c += 1;
       }
     }
-    f += 1;
   }
-  
-  // Combinar todas las submatrices reducidas en una sola matriz reducida en el proceso maestro
-  mapCell *B_global;
-  if (rank == 0) {
-    B_global = (mapCell *)malloc(n_filas * n_columnas * sizeof(mapCell));
-  }
-  MPI_Gather(B, total_filas_bloque, MPI_CHAR, B_global, total_filas_bloque, MPI_CHAR, 0, comm);
-  
-  // Copiar la matriz reducida en la matriz C
-  if (rank == 0) {
-    memcpy(C, B_global, n_filas * n_columnas * sizeof(mapCell));
-    free(B_global);
-  }
+
+  // Recolectar resultados
+  MPI_Gather(B, num_rows * n_columnas, MPI_DOUBLE, C, num_rows * n_columnas, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+  // Liberar memoria
   free(B);
 }
 
@@ -796,9 +786,10 @@ int generarAnimacionGNUPlot(char nombreArchivo[], int secuencia) {
 
 // Acá va la función main.
 int main(int argc, char *argv[]) {
-  MPI_Comm comm;
+  int rank, size;
   MPI_Init(&argc, &argv);
-  MPI_Comm_dup(MPI_COMM_WORLD, &comm);
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  MPI_Comm_size(MPI_COMM_WORLD, &size);
   int i, flag = 0;
   mapCell *testPoint, *resultPoint, *resultCalc, *resultPoint2;
   point2D *crateres;
@@ -906,7 +897,7 @@ int main(int argc, char *argv[]) {
         memcpy(resultPoint, resultCalc,
                (c0.maxRows + 2) * (c0.maxColumns + 2) * sizeof(mapCell));
       }
-      postFuncion(c0.maxRows + 2, c0.maxColumns + 2, resultCalc, resultPoint2,comm);
+      postFuncion(c0.maxRows + 2, c0.maxColumns + 2, resultCalc, resultPoint2,int rank, int size);
     }
   }
 
